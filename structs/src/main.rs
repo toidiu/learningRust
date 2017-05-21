@@ -14,6 +14,10 @@ fn main() {
         fn old_cat() -> Cat {
             Cat{color: String::from("brown"), age: 9000}
         }
+
+        fn make_noise() {
+            println!("meow");
+        }
     }
 
     let dolche = Cat {
@@ -27,4 +31,5 @@ fn main() {
     let old = Cat::old_cat();
     dolche.meow();
     old.meow();
+    Cat::make_noise();
 }
