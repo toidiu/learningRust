@@ -1,0 +1,6 @@
+[package]
+name = "collections"
+version = "0.1.0"
+authors = ["toidiu <toidiu@protonmail.com>"]
+
+[dependencies]
