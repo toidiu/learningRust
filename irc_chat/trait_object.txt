@@ -1,0 +1,48 @@
+Trait Object
+
+panicbit (IRC)
+toidiu-M: Ok, so a trait is basically just a bunch of methods that a type has to implent, right?
+@toidiu:disroot.org
+yep
+panicbit (IRC)
+toidiu-M: Each implementation thusly has different function pointers for each method
+e.g. ImageAsset::load and SoundAsset::load are different functions / function pointers
+And you always need to use the correct function pointer with the correct type
+panicbit (IRC)
+Usually Rust knows which function to call for a value, because it knows the exact type
+But you can make Rust forget the exact type
+e.g. you can turn a `SoundLoader` into a `&Asset`
+The latter is called a trait object
+@toidiu:disroot.org
+so a reference makes it a trait object?
+panicbit (IRC)
+At this point, Rust doesn't know that the latter value is a `SoundLoader`
+Not exactly
+A kind of reference is required
+But you don't automatically get a trait object if you don't want to
+you have to specify `&Asset` somwhere
+otherwise you'd get a `&SoundLoder` when taking a reference
+Anyway
+Since Rust doesn't know the exact type at compile-type anymore, how does it know which function of the trait impl to call?
+The trick is the pointer
+Which is actually two pointers (also called a fat pointer)
+one pointer points to the data
+(the sound loader in our case)
+panicbit (IRC)
+and one pointer points to the *table of functions of the correct trait impl*
+that table is called vtable
+If you try to call function `foo` on a value, then Rust looks up the pointer for `foo` in that table and passes the data pointer to that function
+This way, rust doesn't have to know the actual type
+panicbit (IRC)
+It just has to pass the table of functions along
+looking up a function in this table an calling it is called virtual dispatch
+@toidiu:disroot.org
+so let rephrasing: instead of passing a SoundLoader or &SoundLoader you pass a &Asset.
+And since &Asset is not a deterministic type at compile time we resort to dynamic dispatch
+panicbit (IRC)
+yup
+exactly
+panicbit (IRC)
+As soon as you have a `&Trait`, `Box<Trait>` or some other pointer type of a trait, you have a trait object at your hands
+@toidiu:disroot.org
+and since it is a fat pointer which contains the data and table of functions the runtime is responsible for determining the actual implementation.

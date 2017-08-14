@@ -1,0 +1,330 @@
+MTA async code review
+
+@toidiu:disroot.org
+btw anyone care to give me feedback on some code I have written. https://github.com/toidiu/mta_status/blob/async-simplify/src/xml_client.rs
+
+@toidiu:disroot.org
+I am trying to parse a hyper::Client response and convert it into a string.
+
+Douman (IRC)
+toidiu-M: well panic is ok if it is really unlikely that you receive invalid utf-8
+but if you ain't sure about that then better to deal with it properly
+@toidiu:disroot.org
+Douman: yea since I am calling to a third party url I should probably be handling it.
+S
+SamResendez (IRC)
+I'll probably be back :P
+D
+Douman (IRC)
+toidiu-M: also i'm not really sure why you need https://github.com/toidiu/mta_status/blob/async-simplify/src/xml_client.rs#L25 if you're re-assign a new value without using result
+
+toidiu/mta_status - GitHub
+mta_status - written in rust: parses mta xml response and return a nice json (minimal at the moment)
+S
+seanmonstar (IRC)
+toidiu-M: you can skip the to_vec part. that's copying the full buffer into a new Vec, before copying again into a new String
+D
+Douman (IRC)
+toidiu-M: well your url points to some text file which should be more or less encoded in the same way.... so if it is utf-8 then i doubt you'd have problems in future
+cool guys use utf-8 anyway
+T
+@toidiu:disroot.org
+Douman: I am creating a lot of variables here because i was using the types to help be debug and get the correct implementation. I agree that there is no need to create these variables.
+D
+Douman (IRC)
+ah... i see... well aside from unecessary to_vec there is nothing wrong with your code i guess
+S
+seanmonstar (IRC)
+I'd convert the utf8 panic into some XmlError variant
+Q
+quodlibetor (IRC) joined the room.
+T
+@toidiu:disroot.org
+seanmonstar: Ah thanks. Still getting used to the streaming api
+LL
+laumann (IRC)
+sfackler: thanks for the help
+D
+Douman (IRC)
+oh so txt file is actually xml... strange why no one use a proper extensions for files...
+T
+@toidiu:disroot.org
+Douman: haha that is actually a URL thats dynamically generated. I guess it is a text file on their server but still unpredictable. http://web.mta.info/status/serviceStatus.txt
+L
+leaper (IRC) joined the room.
+K
+k3d3 (IRC)
+Is there any idiomatic way of using ? within tests?
+T
+@toidiu:disroot.org
+Douman: The point of this project is to take this awful mta xml api and convert it into a nice Json api
+K
+k3d3 (IRC)
+I guess, with a test returning a Result?
+or something
+M
+marcusklaas (IRC) joined the room.
+L
+leaper (IRC)
+Hi. What is more canonical/common: x?; Ok(()) or x.map_err(From::from)
+D
+Douman (IRC)
+toidiu-M: yeah. it is nice. xml is such trash
+S
+seanmonstar (IRC)
+ k3d3: you could wrap in a closure ;_;
+K
+k3d3 (IRC)
+Hehehe
+I was considering doing that
+or having two functions per test :P
+Actually
+it is a test - I suppose I could just unwrap the thing and let it fail if an error occurs
+T
+@toidiu:disroot.org
+seanmonstar: Could you expand on how I should return a XmlError? This is one thing I ran into. Since the main.rs expects a Future<Error: hyper::Error>, the rest of the code also has to return that error
+KK
+k3d3 (IRC)
+... I just spent half an hour on this (after not using rust for like, a week) - I can't believe that slipped my mind
+VM
+@mozilla_viny:matrix.org left the room.
+L
+leaper (IRC)
+To clarify my question, this is something that happens when at the end of function retuning Result<V, E1> you have expression of type Result<V, E2>.
+S
+seanmonstar (IRC)
+toidiu-M: oh, this is a server
+panic = tears in this case
+Lokathor (IRC)
+leaper, map_err is just right for that situation
+T
+@toidiu:disroot.org
+seanmonstar: I agree, no need to panic when you can simply tell the user that something went wrong. This was a temporary solution to get things working :)
+S
+seanmonstar (IRC)
+toidiu-M: for the server, you don't want to return the hyper::Error in almost any case
+if you do, hyper sees that as abort the connection
+it's more proper for a server, when it sees an error, to still respond properly, just with 400 or 500 status
+T
+@toidiu:disroot.org
+hmm, so then the return type of that function should be tuple(String, StatusCode) ?
+D
+Douman (IRC)
+seanmonstar: panic wouldn't abort application?
+S
+seanmonstar (IRC)
+I'd consider making an enum thing, with a success variant containing the body
+D
+Douman (IRC)
+in hyper's handler
+M
+@mozilla_quodlibetor:matrix.org left the room.
+S
+seanmonstar (IRC)
+Douman: it woukd take down the thread
+toidiu-M: sure 
+T
+@toidiu:disroot.org
+seanmonstar: and since its the only thread that means the application would crash right?
+D
+Douman (IRC)
+wouldn't panic even outside of main thread to crash... though i never tried
+S
+seanmonstar (IRC)
+and convert every error case into a proper status code
+yes
+D
+Douman (IRC)
+toidiu-M: under hood hyper uses tokio with multiple threads actually
+wait rally?
+i thought tokio spawns several threads
+by default*
+T
+@toidiu:disroot.org
+Douman: I thought Core is thread local
+S
+seanmonstar (IRC)
+it's possible to do that
+but that main rs does not do that
+M
+@mozilla_shellac:matrix.org left the room.
+T
+@toidiu:disroot.org
+seanmonstar: Is there an example of doing multi-threading?
+S
+seanmonstar (IRC)
+easiest way is with tokios TcpServer
+but it manages cores for you, making it harder to setup your client
+D
+Douman (IRC)
+cannot you supply own tokio core?
+to hyper
+S
+seanmonstar (IRC)
+that's what this current main rs does
+D
+Douman (IRC)
+wait i want to back-track a bit. So what is defaults of hyper's tokio core? only 1 thread?
+JJ
+jsgf (IRC) joined the room.
+T
+@toidiu:disroot.org
+seanmonstar: And is there any way to make it multi-threaded? I didnt see any configuration to specify that
+D
+Douman (IRC)
+https://docs.rs/hyper/0.11.2/hyper/server/struct.Http.html#method.bind_connection what about it?
+hyper::server::Http - Rust
+API documentation for the Rust `Http` struct in crate `hyper`.
+S
+seanmonstar (IRC)
+toidiu-M: the multi threaded version truly just does what you're doing inside thread::spawn times the number of cores
+Douman: at this moment, it uses 1 thread
+er
+B
+b4hand (IRC) joined the room.
+S
+seanmonstar (IRC)
+bind_connection doesn't know anything about threads
+D
+Douman (IRC)
+no i mean shouldn't you supply tokio event loop?
+S
+seanmonstar (IRC)
+it wraps a socket in http and submits to the Core
+D
+Douman (IRC)
+i.e. you can initialize it by yourself
+ah
+MM
+@mozilla_marcusklaas:matrix.org left the room.
+D
+Douman (IRC)
+i forgot already how this tokio works
+S
+seanmonstar (IRC)
+bind_connection allows you do exactly that
+D
+Douman (IRC)
+Handle is not core
+S
+seanmonstar (IRC)
+correct
+it's a reference on the same thread
+E
+ElectroMetro (IRC) joined the room.
+T
+@toidiu:disroot.org
+well handle is a reference to Core right
+D
+Douman (IRC)
+hm...
+wait but how exactly we create multi threaded core?
+S
+seanmonstar (IRC)
+you don't
+D
+Douman (IRC)
+wat...
+A
+Arnavion (IRC)
+You create one Core on every thread you want
+A single Core is a single event loop
+D
+Douman (IRC)
+so scheduling of jobs between threads would be still up to you...
+T
+@toidiu:disroot.org
+Core is only sued for one thread. If you want multi threaded you need to spawn multiple threads and create a Core on each thread
+used*
+D
+Douman (IRC)
+i see
+A
+Arnavion (IRC)
+It's up to a higher level than Core, yes. It can be a library that takes tasks from a shared queue
+T
+@toidiu:disroot.org
+seanmonstar: I am guessing this handles the multi-threaded and multi Core logic https://tokio-rs.github.io/tokio-proto/tokio_proto/struct.TcpServer.html
+tokio_proto::TcpServer - Rust
+API documentation for the Rust `TcpServer` struct in crate `tokio_proto`.
+D
+Douman (IRC)
+i guess we'd need such abstraction
+S
+seanmonstar (IRC)
+you could use futures CpuPool
+T
+@toidiu:disroot.org
+but as you said it doent let you supply your own Core and instead manages it itself
+S
+seanmonstar (IRC)
+toidiu-M: right, and like I said, it's basically your current main, but wrapped in thread::spawn a few times
+E
+ElectroMetro (IRC) left the room.
+S
+seanmonstar (IRC)
+I wouldn't worry about multiple threads yet
+that part is easy to turn on
+A
+Arnavion (IRC)
+IIRC futures-cpupool still has thread affinity for the futures you submit to iyt
+it*
+ie it doesn't balance across the pool
+D
+Douman (IRC)
+well Rust's threads are native so no surprise
+A
+Arnavion (IRC)
+(Given how event registration in mio works I'm not sure you *can* balance across the pool)
+D
+Douman (IRC)
+though i don't know even how mio works inside
+S
+seanmonstar (IRC)
+CpuPool is a list of threads and a queue
+as a thread finishes a future, it pops from the queue
+T
+@toidiu:disroot.org
+seanmonstar: well actually this seems to allow you to specify your own handle and therefore control the Core https://tokio-rs.github.io/tokio-proto/tokio_proto/struct.TcpServer.html#method.with_handle
+tokio_proto::TcpServer - Rust
+API documentation for the Rust `TcpServer` struct in crate `tokio_proto`.
+S
+seanmonstar (IRC)
+toidiu-M: nah, it reads funny
+you don't pass a Handle
+D
+Douman (IRC)
+well CpuPool seems fine even as it is
+S
+seanmonstar (IRC)
+you pass a closure that receives a Handle
+GT
+@toidiu:disroot.org
+seanmonstar: I am having trouble with the concept of  "taking the current main and wrapping it in thread::spawn a few times". Are you allowed to open up multiple collections over the same port from multiple threads?
+S
+seanmonstar (IRC)
+toidiu-M: with SO_REUSEPORT :)
+R
+remexre_ (IRC)
+Is there a stable way to check for the availability of std::intrinsics::ctpop and fall back to a software implementation if it's not available?
+B
+bluss (IRC)
+remexre_: .count_ones() on integers
+R
+remexre_ (IRC)
+Oh, huh. Thanks!
+D
+Douman (IRC)
+seanmonstar: you can access underlying socket in tokio? i guess there will be eventually api for that to make cross platform though. reuse port is a bit bothersome
+T
+@toidiu:disroot.org
+seanmonstar: Is there some sample code that illustrates this? tokio_proto mentions SO_REUSEPORT but its not obvious how to set it up
+seanmonstar: btw awesome library! thanks for the code :D
+TT
+Tanjoodo (IRC) joined the room.
+A
+Arnavion (IRC)
+seanmonstar: That reminds me: Why does hyper::Client::new take a &Handle and .clone() it, instead of taking a Handle from the start? (Similar to how rust-api-guidelines says to take String instead of &str if you're going to own it)
+S
+seanmonstar (IRC)
+toidiu-M: https://github.com/tokio-rs/tokio-proto/blob/master/src/tcp_server.rs#L225
