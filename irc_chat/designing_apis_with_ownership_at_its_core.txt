@@ -1,0 +1,54 @@
+@toidiu:disroot.org
+20:12
+So I am preparing to give a beginners talk on Rust. I was wondering what are some topics that people would have liked to have explained when you first started out in rust?
+sarnold (IRC)
+20:46
+toidiu-M: I think I would have liked a more explicit explanation about how for i in foo {} usuall _consumes_ the foo, and that's by design.
+sarnold (IRC)
+toidiu-M: yes! along with the for i in &v .. case
+toidiu-M: I'm sure it's all in the book but somehow I missed the importance of it when starting
+toidiu-M: and I think the differences between fn foo(self), fn foo(&self), fn foo(&mut self), leading to different usages, differnt APIs, and there being choices to be made with each of those
+insaneinside (IRC)
+toidiu-M: so you're saying you've never used a type that is not Copy?
+!ownership
+RR
+rustbot (IRC)
+https://doc.rust-lang.org/book/ownership.html
+T
+@toidiu:disroot.org
+sarnold: sure but wondering what you meant by the differnt APis
+insaneinside: ^
+S
+sarnold (IRC)
+toidiu-M: this is where I'm new enoug htaht my vocabulary and ability to explain is a bit limited..
+II
+insaneinside (IRC)
+toidiu-M: `&self` means "take a reference to the value", whereas `self` means "take ownership of the value within the function, consuming the value"
+S
+sarnold (IRC)
+toidiu-M: a method would take self if it wants to -own- the object, perhaps as part of a transformation that should consume the old object to prevent re-use of a stale object.. something like a hash "finalize" function should consume the old state so attempts to add more data to it fail
+T
+@toidiu:disroot.org
+sarnold: do you mean having the choice to pass things by reference vs move them and what implications that has on your program/API...
+SS
+sarnold (IRC)
+toidiu-M: a method that takes &mut self wants to change something about the object, but not _own_ the object or consume it
+@toidiu:disroot.org
+sarnold: so seems like the common theme is the concept of ownership/lifetimes/reference and how they are enforce like hell by the Rust compiler
+SS
+sarnold (IRC)
+21:03
+toidiu-M: yeah; I think it's easy to focus on the mechanics of the 'to make this change you have to own the data' or 'have only a single mutable reference' etc., but lose the bigger picture of designing the API around ownership as the core idea
+@toidiu:disroot.org
+21:05
+sarnold: yea I agree and I suddnly fell alot more aware of  having missed this exact point
+sarnold (IRC)
+21:07
+toidiu-M: oh cool :) as I said it might all be there in the books and so on but took me a while before I noticed it; I'm not sure I've internalized it fully yet, but I felt like I understood the String vs str, Vec vs slice, etc., a lot better once I did
+@toidiu:disroot.org
+sarnold: ahah time to go think about this more, and see if I can do justice to the topic.
+21:10
+My original idea was to focus around tokio and mio and the gap they fill. I feel there are alot of things built on top of them and once I understood that it make the magic go away.
+sarnold (IRC)
+21:12
+ha that would be a useful talk for me, I've read through a bunch of the tokio docs but the whole ecosystem hasn't clicked yet for me

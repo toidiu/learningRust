@@ -1,0 +1,9 @@
+[package]
+name = "logging"
+version = "0.1.0"
+authors = ["toidiu <toidiu@protonmail.com>"]
+
+[dependencies]
+log="0.4.1"
+env_logger="0.5.3"
+log4rs="0.8.0"
