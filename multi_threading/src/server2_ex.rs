@@ -9,51 +9,20 @@ extern crate serde_json;
 use std::{thread, time};
 use std::sync::Arc;
 use std::net::SocketAddr;
-use futures::Stream;
 use net2::unix::UnixTcpBuilderExt;
 use tokio_core::reactor::Core;
 use tokio_core::net::{TcpListener, TcpStream};
 use futures::future::FutureResult;
-use futures::task;
+use futures::{Future, Poll, task, Async, Stream};
 use hyper::{Get, StatusCode};
 use hyper::header::ContentLength;
 use hyper::server::{Http, Service, Request, Response};
 use std::sync::Mutex;
 
-pub fn start_server(nb_instances: usize, addr: &str) {
-    let addr = addr.parse().unwrap();
-
-    let protocol = Arc::new(Http::new());
-    {
-        for id in 1..nb_instances {
-            let protocol = protocol.clone();
-            thread::spawn(move || serve(&addr, &protocol, id));
-        }
-    }
-    serve(&addr, &protocol, 0);
-}
-
-fn serve(addr: &SocketAddr, protocol: &Http, id: usize) {
-    let mut core = Core::new().unwrap();
-    let handle = core.handle();
-    let listener = net2::TcpBuilder::new_v4()
-        .unwrap()
-        .reuse_port(true)
-        .unwrap()
-        .bind(addr)
-        .unwrap()
-        .listen(128)
-        .unwrap();
-    let listener = TcpListener::from_listener(listener, addr, &handle).unwrap();
-    core.run(listener.incoming().for_each(|(socket, addr)| {
-        protocol.bind_connection(&handle, socket, addr, Echo { id: id });
-        Ok(())
-    })).unwrap();
-}
 
 
-// ====================================
-
+/// Source:
+/// https://blog.guillaume-gomez.fr/articles/2017-02-22+Rust+asynchronous+HTTP+server+with+tokio+and+hyper
 
 struct ThreadData {
     entries: Vec<(TcpStream, SocketAddr)>,
@@ -115,9 +84,51 @@ pub fn start_better_server(addr: &str, num_thread: usize) {
     })).unwrap();
 }
 
-fn make_service_threads(num_thread: usize) -> Vec<Mutex<ThreadData>> {
+struct Foo<F: Fn()> {
+    c: F,
+}
 
-    Vec::new()
+
+
+// This is where the magic occurs, our object needs to be polled anytime it receives a new client!
+impl<F: Fn()> Future for Foo<F> {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        (self.c)();
+        // If we returned `Async::Ready`, this function will never be called again so let's
+        // avoid it.
+        Ok(Async::NotReady)
+    }
+}
+
+fn make_service_threads(num_thread: usize) -> Vec<Arc<Mutex<ThreadData>>> {
+    let mut threads = Vec::new();
+    for id in 0..num_thread {
+        let data = ThreadData::new();
+        threads.push(data.clone());
+
+        thread::spawn(move || {
+            let mut core = Core::new().unwrap();
+            let handle = core.handle();
+            let protocol = Http::new();
+
+            core.run(Foo {
+                c: || {
+                    let mut data = data.lock().unwrap();
+                    for (socket, addr) in data.entries.drain(..) {
+                        protocol.bind_connection(&handle, socket, addr, Echo { id: id });
+                    }
+                    // We reset the task in our `ThreadData` in case we switched context.
+                    data.task = Some(task::park());
+
+                },
+            }).unwrap();
+
+        });
+    }
+    threads
 }
 
 
@@ -142,15 +153,15 @@ impl Service for Echo {
     fn call(&self, req: Request) -> Self::Future {
         futures::future::ok(match (req.method(), req.path()) {
             (&Get, "/data") => {
-                println!("here==== {}", self.id);
                 // let b = cpu_intensive_work().into_bytes();
 
-                for x in 0..10000 {
-                    let y = format!("Value: {}", x);
-                }
-                // let sleep_time = time::Duration::from_secs(5);
-                // thread::sleep(sleep_time);
-                let b = "";
+                // for x in 0..10000000 {
+                //     let y = format!("Value: {}", x);
+                // }
+                let sleep_time = time::Duration::from_secs(5);
+                thread::sleep(sleep_time);
+                println!("here==== {}", self.id);
+                let b = "hi";
 
                 Response::new()
                     .with_header(ContentLength(b.len() as u64))

@@ -12,6 +12,7 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
+extern crate num_cpus;
 
 mod rayon_ex;
 mod server_ex;
@@ -23,6 +24,6 @@ fn main() {
     // rayon_ex::rayon_main();
     // server_ex::start_server(4, "0.0.0.0:8080");
     // server2_ex::start_server(4, "0.0.0.0:8080");
-    server2_ex::start_better_server("0.0.0.0:8080", 4);
+    server2_ex::start_better_server("0.0.0.0:8080", num_cpus::get());
     // channels_ex::ch();
 }
