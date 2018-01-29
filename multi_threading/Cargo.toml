@@ -1,0 +1,20 @@
+[package]
+name = "multi_threading"
+version = "0.1.0"
+authors = ["toidiu <toidiu@protonmail.com>"]
+
+[dependencies]
+rayon="0.9"
+log = "0.3"
+net2 = "0.2.27"
+tokio-core = "0.1.6"
+serde = "0.9.13"
+serde_json = "0.9.10"
+serde_derive = "0.9.13"
+futures = "0.1.7"
+hyper = "0.11"
+pretty_env_logger = "0.1"
+prometheus = "0.2.8"
+rand = "0.3"
+tk-listen = "0.1.0"
+futures-cpupool = "0.1.8"
