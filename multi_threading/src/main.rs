@@ -26,5 +26,3 @@ fn main() {
     server2_ex::start_better_server("0.0.0.0:8080", 4);
     // channels_ex::ch();
 }
-
-

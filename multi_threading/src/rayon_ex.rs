@@ -20,14 +20,11 @@ pub fn rayon_main() {
 }
 
 fn sum_of_squares(input: &[i32]) -> i32 {
-    input.par_iter()
-        .map(|&i| i * i)
-        .sum()
+    input.par_iter().map(|&i| i * i).sum()
 }
 
 fn increment_all(input: &mut [i32]) {
-    input.par_iter_mut()
-        .for_each(|p| *p += 1);
+    input.par_iter_mut().for_each(|p| *p += 1);
 
     let sleep_time = time::Duration::from_secs(1);
     thread::sleep(sleep_time);

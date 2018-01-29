@@ -36,13 +36,17 @@ pub fn start_server(nb_instances: usize, addr: &str) {
 fn serve(addr: &SocketAddr, protocol: &Http, id: usize) {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
-    let listener = net2::TcpBuilder::new_v4().unwrap()
-    .reuse_port(true).unwrap()
-    .bind(addr).unwrap()
-    .listen(128).unwrap();
+    let listener = net2::TcpBuilder::new_v4()
+        .unwrap()
+        .reuse_port(true)
+        .unwrap()
+        .bind(addr)
+        .unwrap()
+        .listen(128)
+        .unwrap();
     let listener = TcpListener::from_listener(listener, addr, &handle).unwrap();
     core.run(listener.incoming().for_each(|(socket, addr)| {
-        protocol.bind_connection(&handle, socket, addr, Echo{ id : id});
+        protocol.bind_connection(&handle, socket, addr, Echo { id: id });
         Ok(())
     })).unwrap();
 }
@@ -57,7 +61,7 @@ struct ThreadData {
 }
 
 impl ThreadData {
- pub fn new() -> Arc<Mutex<ThreadData>> {
+    pub fn new() -> Arc<Mutex<ThreadData>> {
         Arc::new(Mutex::new(ThreadData {
             entries: Vec::new(),
             task: None,
@@ -67,26 +71,30 @@ impl ThreadData {
 
 pub fn start_better_server(addr: &str, num_thread: usize) {
 
-//// some init
+    //// some init
     let addr: SocketAddr = addr.parse().unwrap();
     let mut core = Core::new().unwrap();
     let handle = core.handle();
     // let protocol = Arc::new(Http::new());
 
-//// have a vec of thread data that can handle the incoming request
+    //// have a vec of thread data that can handle the incoming request
     let threads = make_service_threads(num_thread);
 
 
-//// build the listener
-    let listener = net2::TcpBuilder::new_v4().unwrap()
-        .reuse_port(true).unwrap()
-        .bind(&addr).unwrap()
-        .listen(128).unwrap();
+    //// build the listener
+    let listener = net2::TcpBuilder::new_v4()
+        .unwrap()
+        .reuse_port(true)
+        .unwrap()
+        .bind(&addr)
+        .unwrap()
+        .listen(128)
+        .unwrap();
     let listener = TcpListener::from_listener(listener, &addr, &handle).unwrap();
 
 
     let mut counter = 0;
-//// on main thread have a core run
+    //// on main thread have a core run
     core.run(listener.incoming().for_each(|(socket, addr)| {
 
         //// for each incoming request add the data to thread round-robin style
@@ -109,13 +117,6 @@ pub fn start_better_server(addr: &str, num_thread: usize) {
 
 fn make_service_threads(num_thread: usize) -> Vec<Mutex<ThreadData>> {
 
-/// here we will create num_thread threads and have a ThreadData associated with each
-
-/// we also need a Core per each thread to poll the entries(connections)
-
-/// the handling will happen by the hyper Server implementation
-
-// protocol.bind_connection(&handle, socket, addr, Echo{ id : 0});
     Vec::new()
 }
 
@@ -128,7 +129,7 @@ fn make_service_threads(num_thread: usize) -> Vec<Mutex<ThreadData>> {
 
 
 #[derive(Clone, Copy)]
-struct Echo{
+struct Echo {
     id: usize,
 }
 
@@ -140,22 +141,22 @@ impl Service for Echo {
 
     fn call(&self, req: Request) -> Self::Future {
         futures::future::ok(match (req.method(), req.path()) {
-                (&Get, "/data") => {
-                    println!("here==== {}", self.id);
-                    // let b = cpu_intensive_work().into_bytes();
+            (&Get, "/data") => {
+                println!("here==== {}", self.id);
+                // let b = cpu_intensive_work().into_bytes();
 
-                    for x in 0..10000 {
-                        let y = format!("Value: {}", x);
-                    }
-                    // let sleep_time = time::Duration::from_secs(5);
-                    // thread::sleep(sleep_time);
-                    let b = "";
-
-                    Response::new()
-                        .with_header(ContentLength(b.len() as u64))
-                        .with_body(b)
+                for x in 0..10000 {
+                    let y = format!("Value: {}", x);
                 }
-                _ => Response::new().with_status(StatusCode::NotFound),
-            })
+                // let sleep_time = time::Duration::from_secs(5);
+                // thread::sleep(sleep_time);
+                let b = "";
+
+                Response::new()
+                    .with_header(ContentLength(b.len() as u64))
+                    .with_body(b)
+            }
+            _ => Response::new().with_status(StatusCode::NotFound),
+        })
     }
 }

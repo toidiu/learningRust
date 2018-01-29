@@ -11,9 +11,7 @@ pub fn ch() {
     for i in 0..NTHREADS {
         let thread_tx = tx.clone();
 
-        thread::spawn(move || {
-            thread_tx.send(i).unwrap();
-        });
+        thread::spawn(move || { thread_tx.send(i).unwrap(); });
     }
 
     // Here, all the messages are collected

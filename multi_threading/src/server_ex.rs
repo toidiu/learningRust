@@ -34,13 +34,17 @@ pub fn start_server(nb_instances: usize, addr: &str) {
 fn serve(addr: &SocketAddr, protocol: &Http, id: usize) {
     let mut core = Core::new().unwrap();
     let handle = core.handle();
-    let listener = net2::TcpBuilder::new_v4().unwrap()
-    .reuse_port(true).unwrap()
-    .bind(addr).unwrap()
-    .listen(128).unwrap();
+    let listener = net2::TcpBuilder::new_v4()
+        .unwrap()
+        .reuse_port(true)
+        .unwrap()
+        .bind(addr)
+        .unwrap()
+        .listen(128)
+        .unwrap();
     let listener = TcpListener::from_listener(listener, addr, &handle).unwrap();
     core.run(listener.incoming().for_each(|(socket, addr)| {
-        protocol.bind_connection(&handle, socket, addr, Echo{ id : id});
+        protocol.bind_connection(&handle, socket, addr, Echo { id: id });
         Ok(())
     })).unwrap();
 }
@@ -75,7 +79,7 @@ fn cpu_intensive_work() -> String {
 }
 
 #[derive(Clone, Copy)]
-struct Echo{
+struct Echo {
     id: usize,
 }
 
@@ -87,14 +91,14 @@ impl Service for Echo {
 
     fn call(&self, req: Request) -> Self::Future {
         futures::future::ok(match (req.method(), req.path()) {
-                (&Get, "/data") => {
-                    println!("here==== {}", self.id);
-                    let b = cpu_intensive_work().into_bytes();
-                    Response::new()
-                        .with_header(ContentLength(b.len() as u64))
-                        .with_body(b)
-                }
-                _ => Response::new().with_status(StatusCode::NotFound),
-            })
+            (&Get, "/data") => {
+                println!("here==== {}", self.id);
+                let b = cpu_intensive_work().into_bytes();
+                Response::new()
+                    .with_header(ContentLength(b.len() as u64))
+                    .with_body(b)
+            }
+            _ => Response::new().with_status(StatusCode::NotFound),
+        })
     }
 }
